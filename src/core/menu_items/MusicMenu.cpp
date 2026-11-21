@@ -1,6 +1,6 @@
 #include "MusicMenu.h"
 #include "core/display.h"
-#include "core/mykeyboard.h" // for check(), EscPress
+#include "core/mykeyboard.h" // for check(), NextPress/PrevPress/EscPress
 #include "core/sd_functions.h"
 #include "core/utils.h"
 #include <interface.h>
@@ -8,12 +8,6 @@
 #include <AudioFileSourceSD.h>
 #include <AudioGeneratorMP3.h>
 #include <AudioOutputI2SNoDAC.h>
-
-// Confirmed wiring: PAM8403 signal pin
-#define MUSIC_AUDIO_PIN 22
-// Extra buttons (not part of Bruce's standard Prev/Next/Sel/Esc scheme)
-#define BTN_VOL_UP   17
-#define BTN_VOL_DOWN 16
 
 static AudioFileSourceSD *audioFile = nullptr;
 static AudioGeneratorMP3 *mp3 = nullptr;
@@ -29,18 +23,14 @@ void MusicMenu::optionsMenu() {
 }
 
 void MusicMenu::playScreen(String filepath) {
-    pinMode(BTN_VOL_UP, INPUT_PULLUP);
-    pinMode(BTN_VOL_DOWN, INPUT_PULLUP);
-
     audioFile = new AudioFileSourceSD(filepath.c_str());
     audioOut = new AudioOutputI2SNoDAC();
 
-    // *** UNVERIFIED: how to bind AudioOutputI2SNoDAC to MUSIC_AUDIO_PIN (22) ***
-    // This has changed across ESP8266Audio library versions. After adding the
-    // library in platformio.ini, open its examples folder
-    // (.pio/libdeps/<env>/ESP8266Audio/examples/) and look for a NoDAC example
-    // to confirm the exact call (SetPinout(), a constructor argument, or a
-    // direct i2s_set_pin() override). Do not flash until this line is confirmed.
+    // *** UNVERIFIED: how to bind AudioOutputI2SNoDAC to GPIO22 (confirmed
+    // audio signal pin) *** -- this call has changed across ESP8266Audio
+    // library versions. After building once, check
+    // .pio/libdeps/<env>/ESP8266Audio/examples/ for a "NoDAC" example and
+    // confirm/adjust this line before trusting the sound output.
     audioOut->SetGain(volume);
 
     mp3 = new AudioGeneratorMP3();
@@ -52,7 +42,7 @@ void MusicMenu::playScreen(String filepath) {
     String name = filepath.substring(filepath.lastIndexOf('/') + 1);
     tft.drawString(name, tftWidth / 2, tftHeight / 2 - 20, 2);
     tft.drawString("Vol: " + String((int)(volume * 100)) + "%", tftWidth / 2, tftHeight / 2 + 10, 2);
-    tft.drawString("BACK = stop", tftWidth / 2, tftHeight / 2 + 30, 2);
+    tft.drawString("UP/DOWN=Vol  BACK=Stop", tftWidth / 2, tftHeight / 2 + 30, 2);
 
     bool playing = true;
     while (playing) {
@@ -65,25 +55,26 @@ void MusicMenu::playScreen(String filepath) {
             playing = false;
         }
 
-        // Same input pattern used across Bruce's other continuous-loop
-        // screens (e.g. IR Jammer's main loop): check(EscPress) reads the
-        // BACK button through Bruce's own debounced input system.
+        // Same input pattern as every other continuous-loop screen in
+        // Bruce -- no raw GPIO reads needed, it's all native check() calls
+        // now that the board has 6 real physical buttons.
         if (check(EscPress)) {
             mp3->stop();
             playing = false;
         }
-
-        // Vol Up/Down are extra buttons outside Bruce's standard 4, so they
-        // are read directly rather than through check().
-        if (digitalRead(BTN_VOL_UP) == LOW) {
-            volume = min(1.0f, volume + 0.02f);
+        if (check(NextPress)) { // physical UP button
+            volume = min(1.0f, volume + 0.05f);
             audioOut->SetGain(volume);
-            delay(80);
+            tft.fillRect(0, tftHeight / 2, tftWidth, 20, TFT_BLACK);
+            tft.drawString("Vol: " + String((int)(volume * 100)) + "%", tftWidth / 2, tftHeight / 2 + 10, 2);
+            delay(120);
         }
-        if (digitalRead(BTN_VOL_DOWN) == LOW) {
-            volume = max(0.0f, volume - 0.02f);
+        if (check(PrevPress)) { // physical DOWN button
+            volume = max(0.0f, volume - 0.05f);
             audioOut->SetGain(volume);
-            delay(80);
+            tft.fillRect(0, tftHeight / 2, tftWidth, 20, TFT_BLACK);
+            tft.drawString("Vol: " + String((int)(volume * 100)) + "%", tftWidth / 2, tftHeight / 2 + 10, 2);
+            delay(120);
         }
     }
 
