@@ -95,7 +95,7 @@ on:
           - "Marauder-v61"
           - "Marauder-v7"
           - "my-esp32"
-          "NewDeviceModel"
+          - "NewDeviceModel"
           - "nm-cyd-c5"
           - "Pebble"
           - "Phantom_S024R"
