@@ -11,7 +11,7 @@ on:
       environment:
         description: 'Select environment to build'
         required: true
-        default: 'lilygo-t-embed-cc1101'
+        default: 'my-esp32'
         type: choice
         options:
           - "arduino-nesso-n1"
@@ -94,7 +94,8 @@ on:
           - "Marauder-V4-V6"
           - "Marauder-v61"
           - "Marauder-v7"
-          - "NewDeviceModel"
+          - "my-esp32"
+          "NewDeviceModel"
           - "nm-cyd-c5"
           - "Pebble"
           - "Phantom_S024R"
