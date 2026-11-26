@@ -6,13 +6,18 @@
 #include <interface.h>
 
 #include <AudioFileSourceSD.h>
+#include <AudioFileSourceBuffer.h>
 #include <AudioGeneratorMP3.h>
 #include <AudioOutputI2SNoDAC.h>
 
 static AudioFileSourceSD *audioFile = nullptr;
+// Reads ahead into RAM so a slow/jittery SD read doesn't starve playback
+// mid-stream -- this is what actually fixes stuttering, not a GPIO change.
+static AudioFileSourceBuffer *audioBuffer = nullptr;
 static AudioGeneratorMP3 *mp3 = nullptr;
 static AudioOutputI2SNoDAC *audioOut = nullptr;
 static float volume = 0.6f; // 0.0 - 1.0
+static constexpr size_t AUDIO_BUFFER_BYTES = 4096; // try 8192 if still stuttering
 
 void MusicMenu::optionsMenu() {
     // loopSD runs its own full navigation loop (same one FileMenu uses) and
@@ -24,6 +29,7 @@ void MusicMenu::optionsMenu() {
 
 void MusicMenu::playScreen(String filepath) {
     audioFile = new AudioFileSourceSD(filepath.c_str());
+    audioBuffer = new AudioFileSourceBuffer(audioFile, AUDIO_BUFFER_BYTES);
     audioOut = new AudioOutputI2SNoDAC();
 
     // *** UNVERIFIED: how to bind AudioOutputI2SNoDAC to GPIO22 (confirmed
@@ -34,7 +40,7 @@ void MusicMenu::playScreen(String filepath) {
     audioOut->SetGain(volume);
 
     mp3 = new AudioGeneratorMP3();
-    mp3->begin(audioFile, audioOut);
+    mp3->begin(audioBuffer, audioOut);
 
     tft.fillScreen(TFT_BLACK);
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
@@ -82,6 +88,8 @@ void MusicMenu::playScreen(String filepath) {
     mp3 = nullptr;
     delete audioOut;
     audioOut = nullptr;
+    delete audioBuffer;
+    audioBuffer = nullptr;
     delete audioFile;
     audioFile = nullptr;
 }
