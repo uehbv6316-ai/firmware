@@ -32,11 +32,13 @@ void MusicMenu::playScreen(String filepath) {
     audioBuffer = new AudioFileSourceBuffer(audioFile, AUDIO_BUFFER_BYTES);
     audioOut = new AudioOutputI2SNoDAC();
 
-    // *** UNVERIFIED: how to bind AudioOutputI2SNoDAC to GPIO22 (confirmed
-    // audio signal pin) *** -- this call has changed across ESP8266Audio
-    // library versions. After building once, check
-    // .pio/libdeps/<env>/ESP8266Audio/examples/ for a "NoDAC" example and
-    // confirm/adjust this line before trusting the sound output.
+    // AudioOutputI2SNoDAC still needs all 3 I2S pins via SetPinout(bclk,
+    // wclk, dout), even though it bit-bangs a simulated bitstream instead
+    // of using a real I2S DAC chip. BCLK (0) and WCLK (15) are unused dummy
+    // pins -- nothing is wired to them, they just have to be valid GPIO
+    // numbers for the call to succeed. DOUT (22) is the real, confirmed
+    // audio signal pin going to the PAM8403.
+    audioOut->SetPinout(0, 15, 22);
     audioOut->SetGain(volume);
 
     mp3 = new AudioGeneratorMP3();
